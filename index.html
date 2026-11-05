@@ -10,7 +10,7 @@
   <meta property="og:type" content="website">
   <meta property="og:image" content="share-cover.png">
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="app.css?v=mobile-load-2">
 </head>
 <body>
   <main class="game-app">
@@ -39,8 +39,12 @@
       <p>点击右侧数字出招<span class="desktop-hint">空格暂停 · F 全屏</span><span class="mobile-hint">横屏看得更清楚</span></p>
       <p id="state" role="status" aria-live="polite">正在准备猫咪</p>
     </footer>
+    <details id="load-details" hidden>
+      <summary>查看加载原因</summary>
+      <pre id="load-diagnostic"></pre>
+    </details>
   </main>
   <script src="assets/ruffle/ruffle.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=mobile-load-2"></script>
 </body>
 </html>
