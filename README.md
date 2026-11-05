@@ -4,6 +4,7 @@
 
 网页发布目录为 `dist`，无需安装依赖或构建。
 Render 使用 Static Site，发布目录设为 `dist`，构建命令可使用 `true`。
+GitHub Pages 从 `gh-pages` 分支根目录发布；该分支由 `dist` 目录导出。
 
 页面通过本地附带的 Ruffle 运行 SWF 游戏资源。Ruffle 的开源许可位于
 `dist/assets/ruffle/LICENSE.md`。游戏资源并不因 Ruffle 的许可而获得额外授权。
