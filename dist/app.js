@@ -1,4 +1,5 @@
 /* Local playback only. Original movie timing and attack controls remain inside the SWF. */
+window.RufflePlayer=window.RufflePlayer||{};
 window.RufflePlayer.config={
   autoplay:'on',unmuteOverlay:'hidden',splashScreen:false,
   letterbox:'on',scale:'showAll',forceScale:true,logLevel:'error',
@@ -10,8 +11,10 @@ const stage=document.querySelector('#stage');
 const loading=document.querySelector('#loading');
 const failure=document.querySelector('#failure');
 const statusText=document.querySelector('#state');
-let player=null,character='cat',paused=false,muted=false,loadSerial=0;
+let player=null,character=new URLSearchParams(location.search).get('character')==='dog'?'dog':'cat',paused=false,muted=false,loadSerial=0;
 let lastFrame=594,lastContext=0,finaleFrame=0,loaded=false;
+let loadAbort=null;
+let loadDiagnostic={version:'mobile-load-2',phase:'准备游戏',error:null};
 const names={cat:'猫咪',dog:'狗狗'};
 const actionRanges=[[600,753,1],[754,838,2],[839,913,3],[914,1004,4],[1005,1168,5],[1169,1282,6],[1283,1397,7],[1398,1527,8],[1528,1664,9],[1665,1801,10],[1928,2778,11]];
 
@@ -28,17 +31,18 @@ function updateStatus(){
 
 async function openCharacter(next=character){
   const serial=++loadSerial;
+  if(loadAbort)loadAbort.abort();
+  const controller=new AbortController();loadAbort=controller;
   character=next;paused=false;loaded=false;lastFrame=594;lastContext=0;finaleFrame=0;
   loading.hidden=false;failure.hidden=true;
+  document.querySelector('#load-details').hidden=true;
+  loadDiagnostic={version:'mobile-load-2',phase:'准备游戏',error:null};
   for(const button of document.querySelectorAll('[data-character]')){
     button.setAttribute('aria-pressed',String(button.dataset.character===character));
     button.classList.toggle('selected',button.dataset.character===character);
   }
   statusText.textContent=`正在准备${names[character]}`;
   if(player){player.remove();player=null;}
-  const nextPlayer=window.RufflePlayer.newest().createPlayer();
-  nextPlayer.setAttribute('aria-label',`${names[character]}游戏，点击右侧数字按钮出招`);
-  stage.replaceChildren(nextPlayer);player=nextPlayer;
   const observeFrame=message=>{
     const match=/PET_FRAME:(\d+):(\d+)/.exec(message);
     if(match&&serial===loadSerial&&(Number(match[1])===0||Number(match[1])===641)){
@@ -48,24 +52,58 @@ async function openCharacter(next=character){
       updateStatus();
     }
   };
+  const showStep=phase=>{
+    if(serial!==loadSerial)return;
+    loadDiagnostic.phase=phase;loading.textContent=phase+'…';
+  };
   try{
-    const movie=window.__petEmbeddedMovie?{data:window.__petEmbeddedMovie(character)}:{url:`assets/${character}.swf`};
+    showStep(`正在下载${names[character]}游戏文件`);
+    let movie;
+    if(window.__petEmbeddedMovie)movie={data:window.__petEmbeddedMovie(character)};
+    else{
+      const response=await fetch(new URL(`assets/${character}.swf`,document.baseURI),{signal:controller.signal});
+      if(!response.ok)throw new Error(`游戏文件下载失败（HTTP ${response.status}）`);
+      const data=new Uint8Array(await response.arrayBuffer());
+      if(serial!==loadSerial)return;
+      const signature=String.fromCharCode(...data.subarray(0,3));
+      if(!['FWS','CWS','ZWS'].includes(signature))throw new Error('下载内容不是有效的游戏文件');
+      loadDiagnostic.movieBytes=data.byteLength;
+      movie={data};
+    }
+    showStep('正在加载运行组件');
+    if(typeof window.RufflePlayer.newest!=='function')throw new Error('运行组件下载未完成，请刷新页面重试');
+    const nextPlayer=window.RufflePlayer.newest().createPlayer();
+    nextPlayer.setAttribute('aria-label',`${names[character]}游戏，点击右侧数字按钮出招`);
+    stage.replaceChildren(nextPlayer);player=nextPlayer;
     await nextPlayer.load({...movie,fontSources:[],parameters:{}});
     if(serial!==loadSerial)return;
     nextPlayer.traceObserver=observeFrame;
     nextPlayer.volume=muted?0:1;
-    const deadline=Date.now()+15000;
+    showStep('正在准备游戏画面');
+    const deadline=Date.now()+45000;
     while(!loaded&&Date.now()<deadline&&serial===loadSerial){
       await new Promise(resolve=>setTimeout(resolve,100));
     }
     if(serial!==loadSerial)return;
     if(!loaded&&nextPlayer.metadata){loaded=true;loading.hidden=true;}
     if(!loaded)throw new Error('游戏加载超时');
+    loadDiagnostic.phase='已打开';
     updateStatus();
   }catch(error){
     if(serial!==loadSerial)return;
     loading.hidden=true;failure.hidden=false;
-    document.querySelector('#failure-message').textContent='游戏没有打开。请刷新重试，或从微信右上角选择“在浏览器打开”。';
+    const message=String(error?.message||error).slice(0,600);
+    loadDiagnostic.error={name:error?.name||'Error',message};
+    document.querySelector('#failure-message').textContent=`${loadDiagnostic.phase}失败。请点“重新打开”重试；仍失败可查看下方加载原因。`;
+    const detail=document.querySelector('#load-details');
+    detail.hidden=false;detail.open=true;
+    document.querySelector('#load-diagnostic').textContent=[
+      `版本：${loadDiagnostic.version}`,
+      `阶段：${loadDiagnostic.phase}`,
+      `错误：${loadDiagnostic.error.name}: ${message}`,
+      `游戏文件：${loadDiagnostic.movieBytes??'未完成'} 字节`,
+      `浏览器：${navigator.userAgent}`
+    ].join('\n');
     statusText.textContent='尚未打开';
     console.error('Unable to open local movie',error);
   }
@@ -88,7 +126,14 @@ document.querySelectorAll('[data-character]').forEach(button=>button.addEventLis
 document.querySelector('#pause').addEventListener('click',togglePause);
 document.querySelector('#sound').addEventListener('click',()=>{muted=!muted;if(player)player.volume=muted?0:1;updateStatus();});
 document.querySelector('#restart').addEventListener('click',()=>openCharacter(character));
-document.querySelector('#retry').addEventListener('click',()=>openCharacter(character));
+document.querySelector('#retry').addEventListener('click',()=>{
+  if(loadDiagnostic.phase==='正在加载运行组件'){
+    const url=new URL(location.href);
+    url.searchParams.set('character',character);
+    url.searchParams.set('retry',String(Date.now()));
+    location.replace(url.href);
+  }else openCharacter(character);
+});
 document.querySelector('#fullscreen').addEventListener('click',fullscreen);
 document.addEventListener('keydown',event=>{
   if(event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement)return;
@@ -102,4 +147,5 @@ if(!window.__petEmbeddedMovie&&location.protocol==='http:'&&location.hostname===
   window.addEventListener('pagehide',()=>navigator.sendBeacon('/__closing',''));
 }
 window.gameState=()=>({character,paused,muted,loaded,lastFrame,lastContext,finaleFrame});
+window.gameDiagnostics=()=>({...loadDiagnostic});
 openCharacter();
