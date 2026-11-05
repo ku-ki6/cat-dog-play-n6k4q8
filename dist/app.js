@@ -14,7 +14,12 @@ const statusText=document.querySelector('#state');
 let player=null,character=new URLSearchParams(location.search).get('character')==='dog'?'dog':'cat',paused=false,muted=false,loadSerial=0;
 let lastFrame=594,lastContext=0,finaleFrame=0,loaded=false;
 let loadAbort=null;
-let loadDiagnostic={version:'mobile-load-2',phase:'准备游戏',error:null};
+let loadDiagnostic={version:'mobile-speed-3',phase:'准备游戏',error:null};
+if(window.PetRuntime)window.PetRuntime.onProgress=info=>{
+  if(loaded||loadDiagnostic.phase!=='正在加载运行组件')return;
+  const percent=Math.min(99,Math.floor(info.received/info.total*100));
+  loading.textContent=info.done?'组件已下载，正在启动游戏…':`正在下载运行组件 ${percent}%…`;
+};
 const names={cat:'猫咪',dog:'狗狗'};
 const actionRanges=[[600,753,1],[754,838,2],[839,913,3],[914,1004,4],[1005,1168,5],[1169,1282,6],[1283,1397,7],[1398,1527,8],[1528,1664,9],[1665,1801,10],[1928,2778,11]];
 
@@ -36,7 +41,8 @@ async function openCharacter(next=character){
   character=next;paused=false;loaded=false;lastFrame=594;lastContext=0;finaleFrame=0;
   loading.hidden=false;failure.hidden=true;
   document.querySelector('#load-details').hidden=true;
-  loadDiagnostic={version:'mobile-load-2',phase:'准备游戏',error:null};
+  loadDiagnostic={version:'mobile-speed-3',phase:'准备游戏',error:null};
+  window.PetRuntime?.prepare();
   for(const button of document.querySelectorAll('[data-character]')){
     button.setAttribute('aria-pressed',String(button.dataset.character===character));
     button.classList.toggle('selected',button.dataset.character===character);
@@ -75,6 +81,9 @@ async function openCharacter(next=character){
     const nextPlayer=window.RufflePlayer.newest().createPlayer();
     nextPlayer.setAttribute('aria-label',`${names[character]}游戏，点击右侧数字按钮出招`);
     stage.replaceChildren(nextPlayer);player=nextPlayer;
+    nextPlayer.addEventListener('loadeddata',()=>{
+      if(serial===loadSerial)nextPlayer.traceObserver=observeFrame;
+    },{once:true});
     await nextPlayer.load({...movie,fontSources:[],parameters:{}});
     if(serial!==loadSerial)return;
     nextPlayer.traceObserver=observeFrame;
@@ -91,6 +100,7 @@ async function openCharacter(next=character){
     updateStatus();
   }catch(error){
     if(serial!==loadSerial)return;
+    loaded=false;
     loading.hidden=true;failure.hidden=false;
     const message=String(error?.message||error).slice(0,600);
     loadDiagnostic.error={name:error?.name||'Error',message};
@@ -102,6 +112,7 @@ async function openCharacter(next=character){
       `阶段：${loadDiagnostic.phase}`,
       `错误：${loadDiagnostic.error.name}: ${message}`,
       `游戏文件：${loadDiagnostic.movieBytes??'未完成'} 字节`,
+      `运行组件：${JSON.stringify(window.PetRuntime?.status()||{})}`,
       `浏览器：${navigator.userAgent}`
     ].join('\n');
     statusText.textContent='尚未打开';
@@ -115,13 +126,30 @@ function togglePause(){
   if(paused)player.pause();else player.play();
   updateStatus();
 }
-async function fullscreen(){
-  try{
-    if(document.fullscreenElement)await document.exitFullscreen();
-    else if(document.querySelector('.game-app').requestFullscreen)await document.querySelector('.game-app').requestFullscreen();
-    else statusText.textContent='横屏查看效果更好';
-  }catch{statusText.textContent='横屏查看效果更好';}
+let expanded=false,hadNativeFullscreen=false;
+function setExpanded(value){
+  expanded=value;
+  document.querySelector('.game-app').classList.toggle('expanded',value);
+  document.body.classList.toggle('game-expanded',value);
+  const button=document.querySelector('#fullscreen');
+  button.textContent=value?'退出全屏':'全屏';
+  button.setAttribute('aria-pressed',String(value));
 }
+function fullscreen(){
+  setExpanded(!expanded);
+  if(!expanded){
+    if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+    return;
+  }
+  const app=document.querySelector('.game-app');
+  if(document.fullscreenEnabled&&app.requestFullscreen){
+    try{app.requestFullscreen().catch(()=>{});}catch{}
+  }
+}
+document.addEventListener('fullscreenchange',()=>{
+  if(document.fullscreenElement){hadNativeFullscreen=true;if(!expanded)document.exitFullscreen().catch(()=>{});}
+  else if(hadNativeFullscreen){hadNativeFullscreen=false;setExpanded(false);}
+});
 document.querySelectorAll('[data-character]').forEach(button=>button.addEventListener('click',()=>openCharacter(button.dataset.character)));
 document.querySelector('#pause').addEventListener('click',togglePause);
 document.querySelector('#sound').addEventListener('click',()=>{muted=!muted;if(player)player.volume=muted?0:1;updateStatus();});
@@ -130,6 +158,8 @@ document.querySelector('#retry').addEventListener('click',()=>{
   if(loadDiagnostic.phase==='正在加载运行组件'){
     const url=new URL(location.href);
     url.searchParams.set('character',character);
+    const current=window.PetRuntime?.status().source;
+    url.searchParams.set('engine',current==='jsdelivr'?'unpkg':current==='unpkg'?'local':'jsdelivr');
     url.searchParams.set('retry',String(Date.now()));
     location.replace(url.href);
   }else openCharacter(character);
@@ -139,6 +169,7 @@ document.addEventListener('keydown',event=>{
   if(event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement)return;
   if(event.code==='Space'){event.preventDefault();togglePause();}
   if(event.key.toLowerCase()==='f')fullscreen();
+  if(event.key==='Escape'&&expanded)fullscreen();
 });
 // The Windows launcher exits after its browser window stops sending heartbeats.
 if(!window.__petEmbeddedMovie&&location.protocol==='http:'&&location.hostname==='127.0.0.1'){
@@ -147,5 +178,5 @@ if(!window.__petEmbeddedMovie&&location.protocol==='http:'&&location.hostname===
   window.addEventListener('pagehide',()=>navigator.sendBeacon('/__closing',''));
 }
 window.gameState=()=>({character,paused,muted,loaded,lastFrame,lastContext,finaleFrame});
-window.gameDiagnostics=()=>({...loadDiagnostic});
+window.gameDiagnostics=()=>({...loadDiagnostic,runtime:window.PetRuntime?.status()});
 openCharacter();
