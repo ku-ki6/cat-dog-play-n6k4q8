@@ -21,6 +21,7 @@ ruffle-player{aspect-ratio:750/400}
 #loading,#failure{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#ceffff;color:#173c36;font-size:17px;z-index:2}
 #failure{flex-direction:column;gap:12px;padding:24px;text-align:center}
 #loading[hidden],#failure[hidden]{display:none}
+#loading{padding:16px;text-align:center}
 .help{display:flex;justify-content:space-between;gap:20px;min-height:36px;padding-top:12px;color:#495d4d;font-size:12px}
 .help p{margin:0;line-height:1.6}
 .help span{margin-left:18px}
@@ -53,3 +54,15 @@ ruffle-player{aspect-ratio:750/400}
  .tools{gap:4px}
  .help span{display:none}
 }
+body.game-expanded{overflow:hidden}
+.game-app.expanded{position:fixed;inset:0;z-index:100;width:100%;max-width:none;height:100vh;height:100dvh;padding:12px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;background:#edf1ed}
+.expanded .stage-wrap{flex:none;align-self:center;width:min(100%,calc((100vh - 100px)*1.875));width:min(100%,calc((100dvh - 100px)*1.875))}
+.expanded .help{flex:none;min-height:24px}
+.expanded .toolbar{flex:none}
+.expanded h1{display:none}
+.expanded .tools{flex-basis:auto;margin-left:auto}
+.expanded button{font-size:12px;padding:6px 8px;min-height:36px}
+.expanded .character{min-width:50px}
+.expanded #load-details{max-height:20vh;overflow:auto}
+:fullscreen.expanded{padding:12px;color:#202625}
+:fullscreen.expanded .toolbar,:fullscreen.expanded .help{color:inherit}
