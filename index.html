@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>猫狗超人</title>
+  <meta name="description" content="猫咪与狗狗的本地游戏，点击原版编号按钮出招。">
+  <meta property="og:title" content="猫狗超人">
+  <meta property="og:description" content="猫咪和狗狗可以切换，点击数字出招。">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="share-cover.png">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main class="game-app">
+    <header class="toolbar">
+      <h1>猫狗超人</h1>
+      <div class="character-switch" role="group" aria-label="选择角色">
+        <button type="button" class="character selected" data-character="cat" aria-pressed="true">猫咪</button>
+        <button type="button" class="character" data-character="dog" aria-pressed="false">狗狗</button>
+      </div>
+      <div class="tools">
+        <button type="button" id="pause" aria-pressed="false">暂停</button>
+        <button type="button" id="sound" aria-pressed="false">静音</button>
+        <button type="button" id="restart">重新开始</button>
+        <button type="button" id="fullscreen">全屏</button>
+      </div>
+    </header>
+    <section class="stage-wrap" aria-label="游戏画面">
+      <div id="stage"></div>
+      <div id="loading" role="status">正在打开游戏…</div>
+      <div id="failure" role="alert" hidden>
+        <p id="failure-message">游戏没有打开。</p>
+        <button type="button" id="retry">重新打开</button>
+      </div>
+    </section>
+    <footer class="help">
+      <p>点击右侧数字出招<span class="desktop-hint">空格暂停 · F 全屏</span><span class="mobile-hint">横屏看得更清楚</span></p>
+      <p id="state" role="status" aria-live="polite">正在准备猫咪</p>
+    </footer>
+  </main>
+  <script src="assets/ruffle/ruffle.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
