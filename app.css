@@ -55,14 +55,14 @@ ruffle-player{aspect-ratio:750/400}
  .help span{display:none}
 }
 body.game-expanded{overflow:hidden}
-.game-app.expanded{position:fixed;inset:0;z-index:100;width:100%;max-width:none;height:100vh;height:100dvh;padding:12px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;background:#edf1ed}
-.expanded .stage-wrap{flex:none;align-self:center;width:min(100%,calc((100vh - 100px)*1.875));width:min(100%,calc((100dvh - 100px)*1.875))}
-.expanded .help{flex:none;min-height:24px}
-.expanded .toolbar{flex:none}
+.game-app.expanded{position:fixed;inset:0;z-index:100;width:100%;max-width:none;height:100vh;height:100dvh;padding:8px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;background:#edf1ed}
+.expanded .stage-wrap{flex:none;align-self:center;width:min(100%,calc((100vh - 60px)*1.875));width:min(100%,calc((100dvh - 60px)*1.875))}
+.expanded .help{display:none}
+.expanded .toolbar{flex:none;min-height:44px;padding-bottom:8px;gap:6px}
 .expanded h1{display:none}
-.expanded .tools{flex-basis:auto;margin-left:auto}
-.expanded button{font-size:12px;padding:6px 8px;min-height:36px}
+.expanded .tools{flex-basis:auto;margin-left:auto;gap:4px}
+.expanded button{font-size:12px;padding:6px;min-height:36px}
 .expanded .character{min-width:50px}
 .expanded #load-details{max-height:20vh;overflow:auto}
-:fullscreen.expanded{padding:12px;color:#202625}
+:fullscreen.expanded{padding:8px;color:#202625}
 :fullscreen.expanded .toolbar,:fullscreen.expanded .help{color:inherit}
